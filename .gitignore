@@ -7,3 +7,9 @@ tests/.DS_Store
 .DS_Store
 vendor/
 dist/
+
+# venom test results
+tests/results
+
+# venom test log
+tests/venom.log
