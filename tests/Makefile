@@ -31,4 +31,101 @@ clean:
 
 
 test: clean test-docker-start
-	venom run . --var redisHost=localhost --var smtpPort=${TEST__SMTP_PORT} --var redisPort=${TEST_REDIS_PORT} --var mysqlHost=localhost --var mysqlPort=${TEST_MYSQL_PORT} --var pgHost=localhost --var pgPort=${TEST_PG_PORT} --exclude MyTestSuiteWeb.yml --exclude MyTestSuiteSMTP.yml --exclude MyTestSuiteImap.yml --exclude MyTestSuiteSSH.yml * --details high
+	venom run . \
+		--var redisHost=localhost \
+		--var smtpPort=${TEST__SMTP_PORT} \
+		--var redisPort=${TEST_REDIS_PORT} \
+		--var mysqlHost=localhost \
+		--var mysqlPort=${TEST_MYSQL_PORT} \
+		--var pgHost=localhost \
+		--var pgPort=${TEST_PG_PORT} \
+		--exclude MyTestSuiteWeb.yml \
+		--exclude MyTestSuiteSMTP.yml \
+		--exclude MyTestSuiteImap.yml \
+		--exclude MyTestSuiteSSH.yml \
+		* \
+		--details high
+
+TMP_DIR = /tmp/ovh/venom
+VENOM_TMP_BIN = $(TMP_DIR)/venom
+DOCK_COMP_CMD = docker-compose -f kafka/docker-compose.yml
+
+# debug with
+# kt consume -topic test-topic
+# kt consume -topic test-topic-avro
+.PHONY: local-env-start
+local-env-start:
+	$(DOCK_COMP_CMD) up \
+		--force-recreate \
+		--remove-orphans \
+		zookeeper kafka0 schema-registry || (docker ps -a -q | xargs docker rm -vf ; exit 1)
+
+.PHONY: local-env-stop
+local-env-stop:
+	$(DOCK_COMP_CMD) down --volumes --remove-orphans
+	docker image prune --force --filter label=stage=test
+	docker images -aq -f 'dangling=true' | xargs docker rmi
+
+# use
+# vars:
+#   kafkaHost: 'localhost'
+#   kafkaPort: '9092'
+.PHONY: test-kafka
+test-kafka: $(VENOM_TMP_BIN) test-kafka-results
+	$(VENOM_TMP_BIN) run \
+		--log debug \
+		--parallel 5 \
+		--format xml \
+		--output-dir "results" \
+		--strict \
+		MyTestSuiteKafka.yml \
+		MyTestSuiteKafkaAvro.yml
+
+$(VENOM_TMP_BIN):
+	CGO_ENABLED=0 go build \
+		-mod=vendor \
+		-o $(VENOM_TMP_BIN) \
+		../cli/venom/.
+	chmod +x $(VENOM_TMP_BIN)
+
+test-kafka-results:
+	mkdir -p results
+
+# use
+# vars:
+#   kafkaHost: 'kafka0'
+#   kafkaPort: '29092'
+.PHONY: test-kafka-docker
+test-kafka-docker: test-kafka-docker-results test-kafka-docker-build
+	$(eval VENOM_CONTAINER_NAME = venom-container-$(shell date +%s))
+
+	go mod download
+	go mod vendor
+	$(DOCK_COMP_CMD) run \
+		--detach \
+		--name $(VENOM_CONTAINER_NAME) \
+		venom tail -f /dev/null
+
+	docker exec $(VENOM_CONTAINER_NAME) venom run \
+		--log debug \
+		--parallel 5 \
+		--format xml \
+		--output-dir "/results" \
+		--strict \
+		tests/MyTestSuiteKafka.yml \
+		tests/MyTestSuiteKafkaAvro.yml; \
+		let "EXIT_CODE=$$?"; \
+	docker cp $(VENOM_CONTAINER_NAME):/results results ; \
+	$(DOCK_COMP_CMD) rm --force --stop -v venom || true ; \
+	exit $$EXIT_CODE
+
+test-kafka-docker-results:
+	mkdir -p results
+
+.PHONY: test-kafka-docker-build
+test-kafka-docker-build:
+	$(DOCK_COMP_CMD) build \
+		--force-rm \
+		venom || \
+		(docker ps -a -q | xargs docker rm -vf; exit 1)
+

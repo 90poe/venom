@@ -1,0 +1,11 @@
+.dockerignore
+.git
+.gitignore
+CONTRIBUTING.md
+Dockerfile
+LICENSE
+README.md
+venom.gif
+
+# venom results folder must not added to the container
+tests/results
