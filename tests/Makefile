@@ -128,4 +128,3 @@ test-kafka-docker-build:
 		--force-rm \
 		venom || \
 		(docker ps -a -q | xargs docker rm -vf; exit 1)
-
