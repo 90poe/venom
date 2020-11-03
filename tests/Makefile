@@ -82,6 +82,8 @@ test-kafka: $(VENOM_TMP_BIN) test-kafka-results
 		MyTestSuiteKafkaAvro.yml
 
 $(VENOM_TMP_BIN):
+	go mod download
+	go mod vendor
 	CGO_ENABLED=0 go build \
 		-mod=vendor \
 		-o $(VENOM_TMP_BIN) \
