@@ -1,8 +1,6 @@
 package kafka
 
 import (
-	"bytes"
-	"encoding/binary"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -91,13 +89,4 @@ func (c client) IsSchemaCached(id int) bool {
 		return false
 	}
 	return true
-}
-
-func getMessageByte(messageValue []byte) (value []byte, schemaID int) {
-	// Remove magic byte, get ID and remove ID before deserialisation
-	value = bytes.TrimPrefix(messageValue, []byte{magicByte})
-	schemaID = int(binary.BigEndian.Uint32(value[:schemaIDSize]))
-	value = value[schemaIDSize:]
-
-	return
 }

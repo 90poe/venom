@@ -19,7 +19,7 @@ testcases:
       - "{{.kafkaHost}}:{{.kafkaPort}}"
     messages:
     - topic: test-topic
-      value: '{"hello":"bar"}'
+      valueFile: 'kafka/values/hello.json'
   - type: kafka
     clientType: consumer
     withTLS: false
@@ -38,4 +38,4 @@ testcases:
     - result.messagesjson.messagesjson0.value.hello ShouldEqual bar
     - result.messages.__len__ ShouldEqual 1
   - type: exec
-    script: kt admin --deletetopic test-topic
+    script: KT_BROKER=localhost:9092 kt admin --deletetopic test-topic

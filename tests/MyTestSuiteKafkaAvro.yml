@@ -5,7 +5,7 @@ vars:
   kafkaPort: '9092'
   kafkaUser: ''
   kafkaPwd: ''
-  kafkaSchemaRegistryHost: 'schema-registry:8081'
+  kafkaSchemaRegistryHost: 'localhost:8081'
 testcases:
 - name: Kafka test
   description: Test kafka
@@ -14,6 +14,7 @@ testcases:
     clientType: producer
     withSASL: false
     withTLS: false
+    withAVRO: true
     user: "{{.kafkaUser}}"
     password: "{{.kafkaPwd}}"
     addrs:
@@ -22,19 +23,22 @@ testcases:
     messages:
     - topic: test-topic-avro
       key: '{"id":1}'
-      value: '{"Avro":"message 1"}'
+      valueFile: "kafka/values/message1.json"
+      avroSchemaFile: "kafka/schemas/message.avsc"
     - topic: test-topic-avro
       key: '{"id":2}'
-      value: '{"Avro":"message 2"}'
+      valueFile: "kafka/values/message2.json"
+      avroSchemaFile: "kafka/schemas/message.avsc"
   - type: kafka
     clientType: consumer
     withTLS: false
     withSASL: false
+    withAVRO: true
     user: "{{.kafkaUser}}"
     password: "{{.kafkaPwd}}"
     markOffset: true
     initialOffset: oldest
-    messageLimit: 1
+    messageLimit: 2
     groupID: venom
     addrs:
       - "{{.kafkaHost}}:{{.kafkaPort}}"
@@ -42,8 +46,8 @@ testcases:
     topics:
       - test-topic-avro
     assertions:
-    - result.messagesjson.messagesjson0.key.id ShouldEqual 1
-    - result.messagesjson.messagesjson0.value.Avro ShouldEqual "message 1"
+    - result.messagesjson.messagesjson0.value.id ShouldEqual 1
+    - result.messagesjson.messagesjson0.value.message ShouldEqual "Some test"
     - result.messages.__len__ ShouldEqual 2
   - type: exec
-    script: kt admin --deletetopic test-topic-avro
+    script: KT_BROKER=localhost:9092 kt admin --deletetopic test-topic-avro
