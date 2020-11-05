@@ -8,6 +8,11 @@ import (
 	"github.com/linkedin/goavro/v2"
 )
 
+const (
+	magicByte    byte  = 0x0
+	schemaIDSize int32 = 4
+)
+
 // Convert2Avro will convert value to Avro encoded binary with help of schema
 func Convert2Avro(value []byte, schema string) ([]byte, error) {
 	// https://github.com/linkedin/goavro
@@ -28,7 +33,7 @@ func Convert2Avro(value []byte, schema string) ([]byte, error) {
 	return binary, nil
 }
 
-// ConvertFromAvro will convert value from Avro encoded binary with help of schema 2 text
+// ConvertFromAvro will convert value from Avro encoded binary with help of schema to string
 func ConvertFromAvro(binary []byte, schema string) (string, error) {
 	// https://github.com/linkedin/goavro
 	codec, err := goavro.NewCodec(schema)
@@ -48,7 +53,7 @@ func ConvertFromAvro(binary []byte, schema string) (string, error) {
 	return string(textual), nil
 }
 
-// CreateMessage will convert Avro message 2 one, which can be sent 2 Kafka
+// CreateMessage will convert Avro message to one, which can be sent to Kafka
 func CreateMessage(message []byte, schemaID int) ([]byte, error) {
 	var value bytes.Buffer
 
@@ -77,11 +82,11 @@ func CreateMessage(message []byte, schemaID int) ([]byte, error) {
 }
 
 // GetMessageAvroID will try to get encoded message Avro ID
-func GetMessageAvroID(messageValue []byte) (value []byte, schemaID int) {
+func GetMessageAvroID(messageValue []byte) ([]byte, int) {
 	// Remove magic byte, get ID and remove ID before deserialisation
-	value = bytes.TrimPrefix(messageValue, []byte{magicByte})
-	schemaID = int(binary.BigEndian.Uint32(value[:schemaIDSize]))
+	value := bytes.TrimPrefix(messageValue, []byte{magicByte})
+	schemaID := int(binary.BigEndian.Uint32(value[:schemaIDSize]))
 	value = value[schemaIDSize:]
 
-	return
+	return value, schemaID
 }
