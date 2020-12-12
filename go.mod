@@ -1,15 +1,18 @@
 module github.com/ovh/venom
 
-go 1.13
+go 1.15
 
 require (
 	github.com/Shopify/sarama v1.27.2
+	github.com/alexbrainman/odbc v0.0.0-20200426075526-f0492dfa1575
 	github.com/antonfisher/nested-logrus-formatter v1.3.0
+	github.com/eclipse/paho.mqtt.golang v1.2.0
 	github.com/fatih/color v1.10.0
-	github.com/fsamin/go-dump v1.1.1
+	github.com/fsamin/go-dump v1.1.2
 	github.com/fullstorydev/grpcurl v1.7.0
 	github.com/garyburd/redigo v1.6.2
 	github.com/ghodss/yaml v1.0.0
+	github.com/go-ole/go-ole v1.2.4 // indirect
 	github.com/go-sql-driver/mysql v1.5.0
 	github.com/go-testfixtures/testfixtures/v3 v3.4.1
 	github.com/golang/protobuf v1.4.3
@@ -18,7 +21,9 @@ require (
 	github.com/inconshreveable/go-update v0.0.0-20160112193335-8152e7eb6ccf
 	github.com/jhump/protoreflect v1.7.0
 	github.com/jmoiron/sqlx v1.2.0
+	github.com/landoop/schema-registry v0.0.0-20190327143759-50a5701c1891
 	github.com/lib/pq v1.8.0
+	github.com/linkedin/goavro/v2 v2.9.8
 	github.com/mattn/go-shellwords v1.0.10
 	github.com/mattn/go-sqlite3 v2.0.3+incompatible // indirect
 	github.com/mattn/go-zglob v0.0.3
@@ -41,7 +46,9 @@ require (
 	github.com/stretchr/testify v1.6.1
 	github.com/yesnault/go-imap v0.0.0-20160710142244-eb9bbb66bd7b
 	golang.org/x/crypto v0.0.0-20201112155050-0c6587e931a9
-	golang.org/x/sys v0.0.0-20201015000850-e3ed0017c211 // indirect
+	golang.org/x/net v0.0.0-20201021035429-f5854403a974 // indirect
+	golang.org/x/sync v0.0.0-20201020160332-67f06af15bc9 // indirect
+	golang.org/x/sys v0.0.0-20201118182958-a01c418693c7 // indirect
 	google.golang.org/grpc v1.30.0
 	gopkg.in/yaml.v2 v2.3.0
 )

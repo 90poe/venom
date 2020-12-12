@@ -1,10 +1,5 @@
 name: Kafka testsuite
 version: "2"
-vars:
-  kafkaHost: 'localhost'
-  kafkaPort: '9092'
-  kafkaUser: ''
-  kafkaPwd: ''
 testcases:
 - name: Kafka test
   description: Test kafka
@@ -37,3 +32,5 @@ testcases:
     assertions:
     - result.messagesjson.messagesjson0.value.hello ShouldEqual bar
     - result.messages.__len__ ShouldEqual 1
+  - type: exec
+    script: command -v kt && KT_BROKER=localhost:9092 kt admin --deletetopic test-topic || true

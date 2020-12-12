@@ -14,8 +14,8 @@ import (
 	"github.com/ovh/venom/executors"
 )
 
-type DumpFile struct {
-	Variables interface{} `json:"variables"`
+type dumpFile struct {
+	Variables H           `json:"variables"`
 	TestStep  TestStep    `json:"step"`
 	Result    interface{} `json:"result"`
 }
@@ -51,12 +51,15 @@ func (v *Venom) RunTestStep(ctx context.Context, e ExecutorRunner, ts *TestSuite
 		mapResultString, _ := executors.DumpString(result)
 
 		if v.Verbose == 2 {
-			dumpFile := DumpFile{
+			fdump := dumpFile{
 				Result:    result,
 				TestStep:  step,
-				Variables: ts.Vars,
+				Variables: AllVarsFromCtx(ctx),
 			}
-			output, _ := json.MarshalIndent(dumpFile, "", " ")
+			output, err := json.MarshalIndent(fdump, "", " ")
+			if err != nil {
+				Error(ctx, "unable to marshal result: %v", err)
+			}
 
 			oDir := v.OutputDir
 			if oDir == "" {
@@ -67,7 +70,7 @@ func (v *Venom) RunTestStep(ctx context.Context, e ExecutorRunner, ts *TestSuite
 			if err := ioutil.WriteFile(filename, []byte(output), 0644); err != nil {
 				return fmt.Errorf("Error while creating file %s: %v", filename, err)
 			}
-			Info(ctx, "File %s is written", filename)
+			tc.computedVerbose = append(tc.computedVerbose, fmt.Sprintf("writing %s", filename))
 		}
 
 		for _, i := range e.Info() {

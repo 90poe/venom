@@ -6,13 +6,22 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"path"
+	"strings"
 	"time"
 
+	"github.com/fatih/color"
 	tap "github.com/mndrix/tap-go"
 	log "github.com/sirupsen/logrus"
 	yaml "gopkg.in/yaml.v2"
 )
+
+func init() {
+	if strings.ToLower(os.Getenv("IS_TTY")) == "true" || os.Getenv("IS_TTY") == "1" {
+		color.NoColor = false
+	}
+}
 
 // OutputResult output result to sdtout, files...
 func (v *Venom) OutputResult(tests Tests, elapsed time.Duration) error {
@@ -46,7 +55,7 @@ func (v *Venom) OutputResult(tests Tests, elapsed time.Duration) error {
 	}
 
 	filename := path.Join(v.OutputDir, "test_results."+v.OutputFormat)
-	if err := ioutil.WriteFile(filename, data, 0644); err != nil {
+	if err := ioutil.WriteFile(filename, data, 0600); err != nil {
 		return fmt.Errorf("Error while creating file %s: %v", filename, err)
 	}
 	v.PrintFunc("Writing file %s\n", filename)

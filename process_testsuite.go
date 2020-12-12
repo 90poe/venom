@@ -100,6 +100,10 @@ func (v *Venom) runTestCases(ctx context.Context, ts *TestSuite) {
 			v.Println("\t  %s %s", cyan("[info]"), cyan(i))
 		}
 
+		for _, i := range tc.computedVerbose {
+			v.PrintlnTrace(i)
+		}
+
 		if hasFailure {
 			for _, f := range tc.Failures {
 				v.Println("%s", red(f.Value))

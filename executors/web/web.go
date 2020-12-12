@@ -46,7 +46,6 @@ type Result struct {
 	Find        int     `json:"find,omitempty" yaml:"find,omitempty"`
 	HTML        string  `json:"html,omitempty" yaml:"html,omitempty"`
 	TimeSeconds float64 `json:"timeseconds,omitempty" yaml:"timeseconds,omitempty"`
-	TimeHuman   string  `json:"timehuman,omitempty" yaml:"timehuman,omitempty"`
 	Title       string  `json:"title,omitempty" yaml:"title,omitempty"`
 	URL         string  `json:"url,omitempty" yaml:"url,omitempty"`
 	Text        string  `json:"text,omitempty" yaml:"text,omitempty"`
@@ -177,7 +176,6 @@ func (Executor) Run(ctx context.Context, step venom.TestStep, workdir string) (i
 
 	elapsed := time.Since(start)
 	result.TimeSeconds = elapsed.Seconds()
-	result.TimeHuman = elapsed.String()
 
 	return result, nil
 }
@@ -227,14 +225,14 @@ func (e Executor) runAction(ctx context.Context, page *agouti.Page) (*Result, er
 			}
 		}
 	} else if e.Action.Navigate != nil {
-		if err := page.Navigate(e.Action.Navigate.Url); err != nil {
+		if err := page.Navigate(e.Action.Navigate.URL); err != nil {
 			return nil, err
 		}
 		if e.Action.Navigate.Reset {
 			if err := page.Reset(); err != nil {
 				return nil, err
 			}
-			if err := page.Navigate(e.Action.Navigate.Url); err != nil {
+			if err := page.Navigate(e.Action.Navigate.URL); err != nil {
 				return nil, err
 			}
 		}

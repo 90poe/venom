@@ -21,13 +21,14 @@ func New() venom.Executor {
 	return &Executor{}
 }
 
-//Executor represents the redis executor
+// Executor represents the redis executor
 type Executor struct {
+	DialURL  string   `json:"dialURL,omitempty" yaml:"dialURL,omitempty" mapstructure:"dialURL"`
 	Commands []string `json:"commands,omitempty" yaml:"commands,omitempty"`
 	FilePath string   `json:"path,omitempty" yaml:"path,omitempty" mapstructure:"path"`
 }
 
-//Command represents a redis command and the result
+// Command represents a redis command and the result
 type Command struct {
 	Name     string        `json:"name,omitempty" yaml:"name,omitempty"`
 	Args     []interface{} `json:"args,omitempty" yaml:"args,omitempty"`
@@ -44,25 +45,22 @@ func (Executor) ZeroValueResult() interface{} {
 	return Result{}
 }
 
-// GetDefaultAssertions return the default assertions of the executor.
-func (e Executor) GetDefaultAssertions() venom.StepAssertions {
-	return venom.StepAssertions{Assertions: []string{}}
-}
-
 // Run execute TestStep
 func (Executor) Run(ctx context.Context, step venom.TestStep, workdir string) (interface{}, error) {
-	dialURL := venom.StringVarFromCtx(ctx, "redis.dialURL")
-	if dialURL == "" {
-		return nil, fmt.Errorf("missing redis.dialURL variable")
-	}
-
-	redisClient, err := redis.DialURL(dialURL)
-	if err != nil {
-		return nil, err
-	}
-
 	var e Executor
 	if err := mapstructure.Decode(step, &e); err != nil {
+		return nil, err
+	}
+	if e.DialURL == "" {
+		e.DialURL = venom.StringVarFromCtx(ctx, "redis.dialURL")
+	}
+
+	if e.DialURL == "" {
+		return nil, fmt.Errorf("missing dialURL")
+	}
+
+	redisClient, err := redis.DialURL(e.DialURL)
+	if err != nil {
 		return nil, err
 	}
 
@@ -131,12 +129,12 @@ func handleRedisResponse(res interface{}, err error) interface{} {
 		var result = []string{}
 		for i := range p {
 			u := p[i]
-			k, _ := redis.String(u, err)
+			k, _ := redis.String(u, err) //nolint
 			result = append(result, k)
 		}
 		return result
 	default:
-		t, _ := redis.String(res, err)
+		t, _ := redis.String(res, err) // nolint
 		return t
 	}
 }

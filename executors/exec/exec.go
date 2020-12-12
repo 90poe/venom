@@ -42,7 +42,6 @@ type Result struct {
 	Err           string      `json:"err,omitempty" yaml:"err,omitempty"`
 	Code          string      `json:"code,omitempty" yaml:"code,omitempty"`
 	TimeSeconds   float64     `json:"timeseconds,omitempty" yaml:"timeseconds,omitempty"`
-	TimeHuman     string      `json:"timehuman,omitempty" yaml:"timehuman,omitempty"`
 }
 
 // ZeroValueResult return an empty implemtation of this executor result
@@ -88,7 +87,7 @@ func (Executor) Run(ctx context.Context, step venom.TestStep, workdir string) (i
 	// Create a tmp file
 	tmpscript, errt := ioutil.TempFile(os.TempDir(), "venom-")
 	if errt != nil {
-		return nil, fmt.Errorf("cannot create tmp file: %s\n", errt)
+		return nil, fmt.Errorf("cannot create tmp file: %s", errt)
 	}
 
 	// Put script in file
@@ -96,23 +95,23 @@ func (Executor) Run(ctx context.Context, step venom.TestStep, workdir string) (i
 	n, errw := tmpscript.Write([]byte(scriptContent))
 	if errw != nil || n != len(scriptContent) {
 		if errw != nil {
-			return nil, fmt.Errorf("cannot write script: %s\n", errw)
+			return nil, fmt.Errorf("cannot write script: %s", errw)
 		}
-		return nil, fmt.Errorf("cannot write all script: %d/%d\n", n, len(scriptContent))
+		return nil, fmt.Errorf("cannot write all script: %d/%d", n, len(scriptContent))
 	}
 
 	oldPath := tmpscript.Name()
 	tmpscript.Close()
 	var scriptPath string
 	if runtime.GOOS == "windows" {
-		//Remove all .txt Extensions, there is not always a .txt extension
-		newPath := strings.Replace(oldPath, ".txt", "", -1)
-		//and add .PS1 extension
-		newPath = newPath + ".PS1"
+		// Remove all .txt Extensions, there is not always a .txt extension
+		newPath := strings.ReplaceAll(oldPath, ".txt", "")
+		// and add .PS1 extension
+		newPath += ".PS1"
 		if err := os.Rename(oldPath, newPath); err != nil {
-			return nil, fmt.Errorf("cannot rename script to add powershell extension, aborting\n")
+			return nil, fmt.Errorf("cannot rename script to add powershell extension, aborting")
 		}
-		//This aims to stop a the very first error and return the right exit code
+		// This aims to stop a the very first error and return the right exit code
 		psCommand := fmt.Sprintf("& { $ErrorActionPreference='Stop'; & %s ;exit $LastExitCode}", newPath)
 		scriptPath = newPath
 		opts = append(opts, psCommand)
@@ -124,7 +123,7 @@ func (Executor) Run(ctx context.Context, step venom.TestStep, workdir string) (i
 
 	// Chmod file
 	if errc := os.Chmod(scriptPath, 0755); errc != nil {
-		return nil, fmt.Errorf("cannot chmod script %s: %s\n", scriptPath, errc)
+		return nil, fmt.Errorf("cannot chmod script %s: %s", scriptPath, errc)
 	}
 
 	start := time.Now()
@@ -134,12 +133,12 @@ func (Executor) Run(ctx context.Context, step venom.TestStep, workdir string) (i
 	cmd.Dir = workdir
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		return nil, fmt.Errorf("runScriptAction: Cannot get stdout pipe: %s\n", err)
+		return nil, fmt.Errorf("runScriptAction: Cannot get stdout pipe: %s", err)
 	}
 
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
-		return nil, fmt.Errorf("runScriptAction: Cannot get stderr pipe: %s\n", err)
+		return nil, fmt.Errorf("runScriptAction: Cannot get stderr pipe: %s", err)
 	}
 
 	stdoutreader := bufio.NewReader(stdout)
@@ -201,7 +200,6 @@ func (Executor) Run(ctx context.Context, step venom.TestStep, workdir string) (i
 
 	elapsed := time.Since(start)
 	result.TimeSeconds = elapsed.Seconds()
-	result.TimeHuman = elapsed.String()
 
 	result.Systemout = venom.RemoveNotPrintableChar(strings.TrimRight(result.Systemout, "\n"))
 	result.Systemerr = venom.RemoveNotPrintableChar(strings.TrimRight(result.Systemerr, "\n"))

@@ -13,7 +13,7 @@ import (
 	"github.com/ovh/cds/sdk/interpolate"
 )
 
-var varRegEx, _ = regexp.Compile("{{.*}}")
+var varRegEx = regexp.MustCompile("{{.*}}")
 
 //Parse the testcase to find unreplaced and extracted variables
 func (v *Venom) parseTestCase(ts *TestSuite, tc *TestCase) ([]string, []string, error) {
@@ -94,8 +94,8 @@ func (v *Venom) parseTestCase(ts *TestSuite, tc *TestCase) ([]string, []string, 
 					}
 				}
 				if !found {
-					s = strings.Replace(s, "{{.", "", -1)
-					s = strings.Replace(s, "}}", "", -1)
+					s = strings.ReplaceAll(s, "{{.", "")
+					s = strings.ReplaceAll(s, "}}", "")
 					vars = append(vars, s)
 				}
 			}
@@ -219,7 +219,7 @@ func (v *Venom) runTestCase(ctx context.Context, ts *TestSuite, tc *TestCase) {
 		allVars := tc.Vars.Clone()
 		allVars.AddAll(tc.computedVars.Clone())
 
-		assign, _, err := ProcessVariableAssigments(ctx, tc.Name, allVars, rawStep)
+		assign, _, err := processVariableAssigments(ctx, tc.Name, allVars, rawStep)
 		if err != nil {
 			tc.AppendError(err)
 			Error(ctx, "unable to process variable assignments: %v", err)
@@ -230,7 +230,7 @@ func (v *Venom) runTestCase(ctx context.Context, ts *TestSuite, tc *TestCase) {
 	}
 }
 
-func ProcessVariableAssigments(ctx context.Context, tcName string, tcVars H, rawStep json.RawMessage) (H, bool, error) {
+func processVariableAssigments(ctx context.Context, tcName string, tcVars H, rawStep json.RawMessage) (H, bool, error) {
 	var stepAssignment AssignStep
 	var result = make(H)
 	if err := yaml.Unmarshal(rawStep, &stepAssignment); err != nil {

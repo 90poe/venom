@@ -23,6 +23,7 @@ import (
 	"github.com/ovh/venom/executors/http"
 	"github.com/ovh/venom/executors/imap"
 	"github.com/ovh/venom/executors/kafka"
+	"github.com/ovh/venom/executors/mqtt"
 	"github.com/ovh/venom/executors/ovhapi"
 	"github.com/ovh/venom/executors/rabbitmq"
 	"github.com/ovh/venom/executors/readfile"
@@ -83,6 +84,7 @@ Notice that variables initialized with -var-from-file argument can be overrided 
 		v.RegisterExecutor(grpc.Name, grpc.New())
 		v.RegisterExecutor(rabbitmq.Name, rabbitmq.New())
 		v.RegisterExecutor(sql.Name, sql.New())
+		v.RegisterExecutor(mqtt.Name, mqtt.New())
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		v.OutputDir = outputDir
@@ -100,9 +102,9 @@ Notice that variables initialized with -var-from-file argument can be overrided 
 				log.Errorf("error while create profile file %v", err)
 			}
 			if fCPU != nil && fMem != nil {
-				pprof.StartCPUProfile(fCPU)
+				pprof.StartCPUProfile(fCPU) //nolint
 				p := pprof.Lookup("heap")
-				defer p.WriteTo(fMem, 1)
+				defer p.WriteTo(fMem, 1) //nolint
 				defer pprof.StopCPUProfile()
 			}
 		}
@@ -127,6 +129,12 @@ Notice that variables initialized with -var-from-file argument can be overrided 
 		v.AddVariables(mapvars)
 
 		start := time.Now()
+
+		if err := v.Init(); err != nil {
+			fmt.Println(err)
+			os.Exit(2)
+			return err
+		}
 
 		if err := v.Parse(path); err != nil {
 			fmt.Println(err)
@@ -158,7 +166,7 @@ Notice that variables initialized with -var-from-file argument can be overrided 
 func readInitialVariables(argsVars []string, argVarsFiles []io.Reader, environ []string) (map[string]interface{}, error) {
 	var cast = func(vS string) interface{} {
 		var v interface{}
-		_ = yml.Unmarshal([]byte(vS), &v) // ignore errors
+		_ = yml.Unmarshal([]byte(vS), &v) //nolint
 		return v
 	}
 

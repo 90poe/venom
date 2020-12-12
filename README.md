@@ -53,12 +53,12 @@ venom can be launched inside a docker image with:
 ```bash
 $ git clone git@github.com:ovh/venom.git
 $ cd venom
-$ docker run -it --rm -v $(pwd)/outputs:/outputs -v $(pwd):/tests run /tests/testsuite.yaml
+$ docker run -it $(docker build -q .) --rm -v $(pwd)/outputs:/outputs -v $(pwd):/tests run /tests/testsuite.yaml
 ```
 
 # TestSuites
 
-A test suite is a collection of test cases that are intended to be used to test a software program to show that it has some specified set of behaviours. 
+A test suite is a collection of test cases that are intended to be used to test a software program to show that it has some specified set of behaviours.
 A test case is a specification of the inputs, execution conditions, testing procedure, and expected results that define a single test to be executed to achieve a particular software testing objective, such as to exercise a particular program path or to verify compliance with a specific requirement.
 
 In `venom` the testcases are executed sequentialy within a testsuite. Each testcase is an ordered set of steps. Each step is based on an `executor` that enable some specific kind of behavior.
@@ -112,19 +112,19 @@ testcases:
 
 * **dbfixtures**: https://github.com/ovh/venom/tree/master/executors/dbfixtures
 * **exec**: https://github.com/ovh/venom/tree/master/executors/exec `exec` is the default type for a step
+* **grpc**: https://github.com/ovh/venom/tree/master/executors/grpc
 * **http**: https://github.com/ovh/venom/tree/master/executors/http
 * **imap**: https://github.com/ovh/venom/tree/master/executors/imap
 * **kafka** https://github.com/ovh/venom/tree/master/executors/kafka
+* **odbc**: https://github.com/ovh/venom/tree/master/executors/plugins/odbc
 * **ovhapi**: https://github.com/ovh/venom/tree/master/executors/ovhapi
+* **rabbitmq**: https://github.com/ovh/venom/tree/master/executors/rabbitmq
 * **readfile**: https://github.com/ovh/venom/tree/master/executors/readfile
 * **redis**: https://github.com/ovh/venom/tree/master/executors/redis
 * **smtp**: https://github.com/ovh/venom/tree/master/executors/smtp
+* **sql**: https://github.com/ovh/venom/tree/master/executors/sql
 * **ssh**: https://github.com/ovh/venom/tree/master/executors/ssh
 * **web**: https://github.com/ovh/venom/tree/master/executors/web
-* **grpc**: https://github.com/ovh/venom/tree/master/executors/grpc
-* **rabbitmq**: https://github.com/ovh/venom/tree/master/executors/rabbitmq
-* **sql**: https://github.com/ovh/venom/tree/master/executors/sql
-
 
 # Variables
 
@@ -339,18 +339,30 @@ $ venom run test.yml
 	  [info] the value of result.systemoutjson is map[foo:bar] (exec.yml:34)
 ```
 
+# Use venom in CI
+
+Venom can be use on dev environement or your CI server.
+To display correctly the venom output, you probably will have to export the environment variable `IS_TTY=true` before running venom.
 
 # Hacking
 
-[How to write your own executor?](/executor/README.md)
+[How to write your own executor?](https://github.com/ovh/venom/tree/master/executors#venom-executor)
 
 How to compile?
 ```
 $ make build
 ```
 
-
-
 # License
 
-This work is under the BSD license, see the [LICENSE](LICENSE) file for details.
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.

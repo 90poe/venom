@@ -41,7 +41,6 @@ type Executor struct {
 // Result represents a step result. Json and yaml descriptor are used for json output
 type Result struct {
 	TimeSeconds float64     `json:"timeseconds,omitempty" yaml:"timeseconds,omitempty"`
-	TimeHuman   string      `json:"timehuman,omitempty" yaml:"timehuman,omitempty"`
 	StatusCode  int         `json:"statuscode,omitempty" yaml:"statuscode,omitempty"`
 	Body        string      `json:"body,omitempty" yaml:"body,omitempty"`
 	BodyJSON    interface{} `json:"bodyjson,omitempty" yaml:"bodyjson,omitempty"`
@@ -148,7 +147,6 @@ func (Executor) Run(ctx context.Context, step venom.TestStep, workdir string) (i
 
 	elapsed := time.Since(start)
 	r.TimeSeconds = elapsed.Seconds()
-	r.TimeHuman = elapsed.String()
 
 	// Add response to result body
 	if res != nil {
@@ -168,7 +166,7 @@ func (e Executor) getRequestBody(workdir string) (res interface{}, err error) {
 	if e.Body != "" {
 		bytes = []byte(e.Body)
 	} else if e.BodyFile != "" {
-		path := filepath.Join(workdir, string(e.BodyFile))
+		path := filepath.Join(workdir, e.BodyFile)
 		if _, err = os.Stat(path); !os.IsNotExist(err) {
 			bytes, err = ioutil.ReadFile(path)
 			if err != nil {

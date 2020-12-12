@@ -17,7 +17,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fsamin/go-dump"
 	"github.com/mitchellh/mapstructure"
+	"github.com/ovh/cds/sdk/interpolate"
 	"github.com/ovh/venom"
 )
 
@@ -54,12 +56,21 @@ type Executor struct {
 // Result represents a step result. Json and yaml descriptor are used for json output
 type Result struct {
 	TimeSeconds float64     `json:"timeseconds,omitempty" yaml:"timeseconds,omitempty"`
-	TimeHuman   string      `json:"timehuman,omitempty" yaml:"timehuman,omitempty"`
 	StatusCode  int         `json:"statuscode,omitempty" yaml:"statuscode,omitempty"`
+	Request     HTTPRequest `json:"request,omitempty" yaml:"request,omitempty"`
 	Body        string      `json:"body,omitempty" yaml:"body,omitempty"`
 	BodyJSON    interface{} `json:"bodyjson,omitempty" yaml:"bodyjson,omitempty"`
 	Headers     Headers     `json:"headers,omitempty" yaml:"headers,omitempty"`
 	Err         string      `json:"err,omitempty" yaml:"err,omitempty"`
+}
+
+type HTTPRequest struct {
+	Method   string      `json:"method,omitempty"`
+	URL      string      `json:"url,omitempty"`
+	Header   http.Header `json:"headers,omitempty"`
+	Body     string      `json:"body,omitempty"`
+	Form     url.Values  `json:"form,omitempty"`
+	PostForm url.Values  `json:"post_form,omitempty"`
 }
 
 // ZeroValueResult return an empty implemtation of this executor result
@@ -85,7 +96,7 @@ func (Executor) Run(ctx context.Context, step venom.TestStep, workdir string) (i
 
 	r := Result{}
 
-	req, err := e.getRequest(workdir)
+	req, err := e.getRequest(ctx, workdir)
 	if err != nil {
 		return nil, err
 	}
@@ -125,6 +136,25 @@ func (Executor) Run(ctx context.Context, step venom.TestStep, workdir string) (i
 		}
 	}
 
+	cReq := req.Clone(ctx)
+	r.Request.Method = cReq.Method
+	r.Request.URL = req.URL.String()
+	if cReq.Body != nil {
+		body, err := cReq.GetBody()
+		if err != nil {
+			return nil, err
+		}
+		btes, err := ioutil.ReadAll(body)
+		if err != nil {
+			return nil, err
+		}
+		defer cReq.Body.Close()
+		r.Request.Body = string(btes)
+	}
+	r.Request.Header = cReq.Header
+	r.Request.Form = cReq.Form
+	r.Request.PostForm = cReq.PostForm
+
 	start := time.Now()
 	resp, err := client.Do(req)
 	if err != nil {
@@ -132,7 +162,6 @@ func (Executor) Run(ctx context.Context, step venom.TestStep, workdir string) (i
 	}
 	elapsed := time.Since(start)
 	r.TimeSeconds = elapsed.Seconds()
-	r.TimeHuman = elapsed.String()
 
 	var bb []byte
 	if resp.Body != nil {
@@ -146,14 +175,11 @@ func (Executor) Run(ctx context.Context, step venom.TestStep, workdir string) (i
 			}
 			r.Body = string(bb)
 
-			bodyJSONArray := []interface{}{}
-			if err := json.Unmarshal(bb, &bodyJSONArray); err != nil {
-				bodyJSONMap := map[string]interface{}{}
-				if err2 := json.Unmarshal(bb, &bodyJSONMap); err2 == nil {
-					r.BodyJSON = bodyJSONMap
-				}
-			} else {
-				r.BodyJSON = bodyJSONArray
+			var m interface{}
+			decoder := json.NewDecoder(strings.NewReader(string(bb)))
+			decoder.UseNumber()
+			if err := decoder.Decode(&m); err == nil {
+				r.BodyJSON = m
 			}
 		}
 	}
@@ -162,7 +188,7 @@ func (Executor) Run(ctx context.Context, step venom.TestStep, workdir string) (i
 		r.Headers = make(map[string]string)
 		for k, v := range resp.Header {
 			if strings.ToLower(k) == "set-cookie" {
-				r.Headers[k] = strings.Join(v[:], "; ")
+				r.Headers[k] = strings.Join(v, "; ")
 			} else {
 				r.Headers[k] = v[0]
 			}
@@ -174,7 +200,7 @@ func (Executor) Run(ctx context.Context, step venom.TestStep, workdir string) (i
 }
 
 // getRequest returns the request correctly set for the current executor
-func (e Executor) getRequest(workdir string) (*http.Request, error) {
+func (e Executor) getRequest(ctx context.Context, workdir string) (*http.Request, error) {
 	path := fmt.Sprintf("%s%s", e.URL, e.Path)
 	method := e.Method
 	if method == "" {
@@ -188,13 +214,19 @@ func (e Executor) getRequest(workdir string) (*http.Request, error) {
 	if e.Body != "" {
 		body = bytes.NewBuffer([]byte(e.Body))
 	} else if e.BodyFile != "" {
-		path := filepath.Join(workdir, string(e.BodyFile))
+		path := filepath.Join(workdir, e.BodyFile)
 		if _, err := os.Stat(path); !os.IsNotExist(err) {
 			temp, err := ioutil.ReadFile(path)
 			if err != nil {
 				return nil, err
 			}
-			body = bytes.NewBuffer(temp)
+			h := venom.AllVarsFromCtx(ctx)
+			vars, _ := dump.ToStringMap(h)
+			stemp, err := interpolate.Do(string(temp), vars)
+			if err != nil {
+				return nil, fmt.Errorf("unable to interpolate file %s: %v", path, err)
+			}
+			body = bytes.NewBufferString(stemp)
 		}
 	} else if e.MultipartForm != nil {
 		form, ok := e.MultipartForm.(map[string]interface{})

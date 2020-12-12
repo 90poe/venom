@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/mattn/go-zglob"
@@ -37,7 +38,6 @@ type Result struct {
 	ContentJSON interface{}       `json:"contentjson,omitempty" yaml:"contentjson,omitempty"`
 	Err         string            `json:"error" yaml:"error"`
 	TimeSeconds float64           `json:"timeSeconds,omitempty" yaml:"timeSeconds,omitempty"`
-	TimeHuman   string            `json:"timeHuman,omitempty" yaml:"timeHuman,omitempty"`
 	Md5sum      map[string]string `json:"md5sum,omitempty" yaml:"md5sum,omitempty"`
 	Size        map[string]int64  `json:"size,omitempty" yaml:"size,omitempty"`
 	ModTime     map[string]int64  `json:"modtime,omitempty" yaml:"modtime,omitempty"`
@@ -80,7 +80,6 @@ func (Executor) Run(ctx context.Context, step venom.TestStep, workdir string) (i
 
 	elapsed := time.Since(start)
 	result.TimeSeconds = elapsed.Seconds()
-	result.TimeHuman = elapsed.String()
 
 	return result, nil
 }
@@ -90,7 +89,7 @@ func (e *Executor) readfile(workdir string) (Result, error) {
 
 	absPath := filepath.Join(workdir, e.Path)
 
-	fileInfo, _ := os.Stat(absPath)
+	fileInfo, _ := os.Stat(absPath) // nolint
 	if fileInfo != nil && fileInfo.IsDir() {
 		absPath = filepath.Dir(absPath)
 	}
@@ -145,15 +144,13 @@ func (e *Executor) readfile(workdir string) (Result, error) {
 
 	result.Content = content
 
-	bodyJSONArray := []interface{}{}
-	if err := json.Unmarshal([]byte(content), &bodyJSONArray); err != nil {
-		bodyJSONMap := map[string]interface{}{}
-		if err2 := json.Unmarshal([]byte(content), &bodyJSONMap); err2 == nil {
-			result.ContentJSON = bodyJSONMap
-		}
-	} else {
-		result.ContentJSON = bodyJSONArray
+	var m interface{}
+	decoder := json.NewDecoder(strings.NewReader(string(content)))
+	decoder.UseNumber()
+	if err := decoder.Decode(&m); err == nil {
+		result.ContentJSON = m
 	}
+
 	result.Md5sum = md5sum
 	result.Size = size
 	result.ModTime = modtime
