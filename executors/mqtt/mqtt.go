@@ -4,15 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/pkg/errors"
 	"time"
 
 	mq "github.com/eclipse/paho.mqtt.golang"
 	"github.com/mitchellh/mapstructure"
 	"github.com/ovh/venom"
+	"github.com/pkg/errors"
 )
-
-// TODO: needs AddRoute rather than global default handler as we don't check the topic otherwise
 
 // Name of executor
 const Name = "mqtt"
@@ -36,7 +34,7 @@ type Executor struct {
 	ClientId            string `json:"client_id" yaml:"clientId"`
 
 	// Subscription topic
-	Topic string `json:"topic" yaml:"topic"`
+	Topics []string `json:"topic" yaml:"topic"`
 
 	// Represents the limit of message will be read. After limit, consumer stop read message
 	MessageLimit int `json:"message_limit" yaml:"messageLimit"`
@@ -99,9 +97,6 @@ func (Executor) Run(ctx context.Context, step venom.TestStep, _ string) (interfa
 	if e.ConnectTimeout == 0 {
 		e.ConnectTimeout = defaultConnectTimeoutMs
 	}
-	if len(e.Topic) != 0 {
-
-	}
 
 	var err error
 	switch e.ClientType {
@@ -131,7 +126,7 @@ func (Executor) Run(ctx context.Context, step venom.TestStep, _ string) (interfa
 }
 
 func (e Executor) session(ctx context.Context, subscriber func(client mq.Client, message mq.Message)) (mq.Client, error) {
-	venom.Debug(ctx, "creating session to %v, cleansession: %v, clientid: %v", e.Addrs, !e.PersistSubscription, e.ClientId)
+	venom.Debug(ctx, "creating session to %v, cleanSession: %v, clientID: %v", e.Addrs, !e.PersistSubscription, e.ClientId)
 
 	opts := mq.NewClientOptions().
 		AddBroker(e.Addrs).
@@ -143,12 +138,16 @@ func (e Executor) session(ctx context.Context, subscriber func(client mq.Client,
 			venom.Debug(ctx, "connection handler called. IsConnected: %v", client.IsConnected())
 		})
 
-	if subscriber != nil {
-		venom.Debug(ctx, "adding global subscriber")
-		opts.SetDefaultPublishHandler(subscriber)
-	}
-
 	client := mq.NewClient(opts)
+
+	// MQTT may send messages prior to a subscription taking place (due to pre-existing persistent session).
+	// We cannot subscribe without a connection so we register a route and subscribe later
+	if subscriber != nil {
+		venom.Debug(ctx, "adding routes: %v", e.Topics)
+		for _, topic := range e.Topics {
+			client.AddRoute(topic, subscriber)
+		}
+	}
 
 	if token := client.Connect(); token.Wait() && token.Error() != nil {
 		venom.Debug(ctx, "connection setup failed")
@@ -193,20 +192,23 @@ func (e Executor) consumeMessages(ctx context.Context) (messages []interface{}, 
 	}
 	defer client.Disconnect(disconnectTimeoutMs)
 
+	start := time.Now()
+
+	for _, topic := range e.Topics {
+		token := client.Subscribe(topic, e.QOS, subscriber)
+		if token.WaitTimeout(time.Duration(e.Timeout)*time.Millisecond) && token.Error() != nil {
+			venom.Debug(ctx, "Failed to subscribe")
+			return nil, nil, nil, errors.Wrapf(token.Error(), "failed to subscribe to topic %v", topic)
+		}
+	}
+
 	messages = []interface{}{}
 	messagesJSON = []interface{}{}
 	topics = []string{}
 
-	start := time.Now()
-
-	token := client.Subscribe(e.Topic, e.QOS, subscriber)
-	if token.WaitTimeout(time.Duration(e.Timeout)*time.Millisecond) && token.Error() != nil {
-		venom.Debug(ctx, "Failed to subscribe during persistent queue setup")
-		return nil, nil, nil, errors.Wrapf(token.Error(), "failed to subscribe to topic %v", e.Topic)
-	}
-
 	venom.Debug(ctx, "message limit %d", e.MessageLimit)
-	ctx2, _ := context.WithTimeout(ctx, time.Duration(e.Timeout)*time.Millisecond)
+	ctx2, cancel := context.WithTimeout(ctx, time.Duration(e.Timeout)*time.Millisecond)
+	defer cancel()
 	for i := 0; i < e.MessageLimit; i++ {
 		venom.Debug(ctx, "Reading message n° %d", i)
 
@@ -252,12 +254,14 @@ func (e Executor) persistMessages(ctx context.Context) error {
 	}
 	defer client.Disconnect(disconnectTimeoutMs)
 
-	token := client.Subscribe(e.Topic, e.QOS, func(client mq.Client, message mq.Message) {
-		venom.Debug(ctx, "msg received in persist request: %v", string(message.Payload()))
-	})
-	if token.WaitTimeout(time.Duration(e.Timeout)*time.Millisecond) && token.Error() != nil {
-		venom.Debug(ctx, "Failed to subscribe during persistent queue setup")
-		return errors.Wrapf(token.Error(), "failed to subscribe to topic %v", e.Topic)
+	for _, topic := range e.Topics {
+		token := client.Subscribe(topic, e.QOS, func(client mq.Client, message mq.Message) {
+			venom.Debug(ctx, "msg received in persist request: %v", string(message.Payload()))
+		})
+		if token.WaitTimeout(time.Duration(e.Timeout)*time.Millisecond) && token.Error() != nil {
+			venom.Debug(ctx, "Failed to subscribe during persistent queue setup")
+			return errors.Wrapf(token.Error(), "failed to subscribe to topic %v", topic)
+		}
 	}
 	return nil
 }

@@ -21,7 +21,8 @@ testcases:
       - type: mqtt
         addrs: "{{.addrs}}"
         clientType: persistent_queue
-        topic: "{{.topic}}"
+        topics:
+        - "{{.topic}}"
         persistSubscription: true
         clientId: "{{.clientId}}"
         qos: 2
@@ -38,7 +39,8 @@ testcases:
         addrs: "{{.addrs}}"
         clientType: subscriber
         clientId: "{{.clientId}}"
-        topic: "{{.topic}}"
+        topics:
+        - "{{.topic}}"
         persistSubscription: true
         qos: 2
         messageLimit: 1
@@ -52,6 +54,7 @@ testcases:
         addrs: "{{.addrs}}"
         clientType: persistent_queue
         clientId: "{{.clientId}}"
-        topic: "{{.topic}}"
+        topics:
+        - "{{.topic}}"
         persistSubscription: false
         qos: 2
