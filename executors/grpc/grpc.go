@@ -3,6 +3,8 @@ package grpc
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"strconv"
@@ -35,12 +37,15 @@ type Executor struct {
 	URL                  string                 `json:"url" yaml:"url"`
 	Service              string                 `json:"service" yaml:"service"`
 	Method               string                 `json:"method" yaml:"method"`
-	Plaintext            bool                   `json:"plaintext,omitempty" yaml:"plaintext,omitempty"`
 	JSONDefaultFields    bool                   `json:"default_fields" yaml:"default_fields"`
 	IncludeTextSeparator bool                   `json:"include_text_separator" yaml:"include_text_separator"`
 	Data                 map[string]interface{} `json:"data" yaml:"data"`
 	Headers              map[string]string      `json:"headers" yaml:"headers"`
 	ConnectTimeout       *int64                 `json:"connect_timeout" yaml:"connect_timeout"`
+	TLSClientCert        string                 `json:"tls_client_cert" yaml:"tls_client_cert" mapstructure:"tls_client_cert"`
+	TLSClientKey         string                 `json:"tls_client_key" yaml:"tls_client_key" mapstructure:"tls_client_key"`
+	TLSRootCA            string                 `json:"tls_root_ca" yaml:"tls_root_ca" mapstructure:"tls_root_ca"`
+	IgnoreVerifySSL      bool                   `json:"ignore_verify_ssl" yaml:"ignore_verify_ssl" mapstructure:"ignore_verify_ssl"`
 }
 
 // Result represents a step result
@@ -128,10 +133,40 @@ func (Executor) Run(ctx context.Context, step venom.TestStep) (interface{}, erro
 		}
 		ctx, cancel := context.WithTimeout(ctx, dialTime)
 		defer cancel()
+
 		var creds credentials.TransportCredentials
+		// connect to a TLS server
+		if e.TLSRootCA != "" {
+			certPool := x509.NewCertPool()
+			if !certPool.AppendCertsFromPEM([]byte(e.TLSRootCA)) {
+				return nil, fmt.Errorf("failed to add root CA's certificate")
+			}
+			creds = credentials.NewTLS(&tls.Config{
+				ClientCAs:          certPool,
+				InsecureSkipVerify: e.IgnoreVerifySSL,
+			})
+
+			// connect to a mutual TLS server
+			if e.TLSClientCert != "" {
+				if e.TLSClientKey == "" {
+					return nil, fmt.Errorf("TLS client cert specified, but TLS client key is missing")
+				}
+				// Load client's certificate and private key
+				cert, err := tls.X509KeyPair([]byte(e.TLSClientCert), []byte(e.TLSClientKey))
+				if err != nil {
+					return nil, fmt.Errorf("failed to parse x509 TLS certificate or key: %w", err)
+				}
+				creds = credentials.NewTLS(&tls.Config{
+					ClientCAs:          certPool,
+					InsecureSkipVerify: e.IgnoreVerifySSL,
+					Certificates:       []tls.Certificate{cert},
+				})
+			}
+		}
+
 		cc, err := grpcurl.BlockingDial(ctx, "tcp", e.URL, creds)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to dial grpc: %w", err)
 		}
 		return cc, nil
 	}
