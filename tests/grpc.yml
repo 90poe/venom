@@ -1,0 +1,24 @@
+name: gRPC TLS Tests
+vars:
+  serviceHost: "localhost:50051"
+
+testcases:
+
+  - name: Greeter TLS Success
+    steps:
+      -
+        type: grpc
+        url: "{{.serviceHost}}"
+        plaintext: false
+        service: Greeter
+        method: SayHello
+        data:
+          name: "John Adams"
+        ignore_verify_ssl: true
+        tls_root_ca: {{.tlsRootCA | quote}}
+        tls_client_cert: {{.tlsClientCert | quote}}
+        tls_client_key: {{.tlsClientKey | quote}}
+        assertions:
+          - result.err ShouldBeEmpty
+          - result.code ShouldEqual 0
+          - result.systemoutjson.message ShouldNotBeEmpty

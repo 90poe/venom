@@ -20,3 +20,5 @@ tests.log
 ./.venomrc
 test_results.xml
 *.prof
+tests/grpc/pki
+tests/pki_variables.yml
