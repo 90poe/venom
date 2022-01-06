@@ -15,9 +15,9 @@ testcases:
         data:
           name: "John Adams"
         ignore_verify_ssl: true
-        tls_root_ca: {{.tlsRootCA | quote}}
-        tls_client_cert: {{.tlsClientCert | quote}}
-        tls_client_key: {{.tlsClientKey | quote}}
+        tls_root_ca: "{{.tlsRootCA | quote}}"
+        tls_client_cert: "{{.tlsClientCert | quote}}"
+        tls_client_key: "{{.tlsClientKey | quote}}"
         assertions:
           - result.err ShouldBeEmpty
           - result.code ShouldEqual 0

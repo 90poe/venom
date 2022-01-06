@@ -70,10 +70,10 @@ stop-test-stack:
 build-test-binary:
 	cd ../cmd/venom; \
 	TEMP=`$(PKGS_COMMA_SEP)`; \
-	CGO_ENABLED=1 go test -coverpkg $$TEMP -c . -o ../../tests/venom.test -tags testbincover;
+	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 \go test -coverpkg $$TEMP -c . -o ../../tests/venom.test -tags testbincover;
 
 build-test-binary-docker:
-	docker run -v `pwd`/..:/workspace golang:1.16 sh -c "cd /workspace/tests && make build-test-binary"	
+	docker run -v `pwd`/..:/workspace golang:1.17.1-buster sh -c "cd /workspace/tests && make build-test-binary"
 
 run-test:
 	VENOM_VAR_MY_ENVAR=foo ./venom_wrapper.sh run -vv --format=xml --output-dir=. --lib-dir=./lib_custom --var='array_from_var=["biz","buz"]' --var-from-file ./kafka/testVariables.yml  --var-from-file ./vars/vars.yml ./*.yml ./assertions/*.yml && \
