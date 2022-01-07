@@ -20,7 +20,7 @@ $(PKI_DIR):
 	openssl req \
 		-new \
 		-key $(PKI_DIR)/server.key \
-		-subj '/C=GB/O=Example/OU=TeamA/CN=api.example.com' \
+		-subj '/C=GB/O=Example/OU=TeamA/CN=example.com' \
 		-out $(PKI_DIR)/server.csr
 
 	# creates the server signed certificate
@@ -41,7 +41,7 @@ $(PKI_DIR):
 	openssl req \
 		-new \
 		-key $(PKI_DIR)/client.key \
-		-subj '/CN=user1.api.example.com' \
+		-subj '/CN=user1.example.com' \
 		-out $(PKI_DIR)/client.csr
 
 	# creates the client signed certificate

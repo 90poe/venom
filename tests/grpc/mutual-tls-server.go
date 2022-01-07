@@ -31,6 +31,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	pb "google.golang.org/grpc/examples/helloworld/helloworld"
+	"google.golang.org/grpc/reflection"
 )
 
 var (
@@ -55,7 +56,7 @@ func (s *server) SayHello(ctx context.Context, in *pb.HelloRequest) (*pb.HelloRe
 }
 
 func main() {
-	lis, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", port))
+	lis, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", port))
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
@@ -66,6 +67,7 @@ func main() {
 	}
 
 	s := grpc.NewServer(grpc.Creds(tlsCredentials))
+	reflection.Register(s)
 	pb.RegisterGreeterServer(s, &server{})
 	log.Printf("server listening at %v", lis.Addr())
 	if err := s.Serve(lis); err != nil {
@@ -84,15 +86,15 @@ func loadTLSCredentials() (credentials.TransportCredentials, error) {
 		return nil, fmt.Errorf("failed to add server CA's certificate")
 	}
 
-	// Load server's certificate and private key
+	// Load server's certificate and private key.
 	serverCert, err := tls.LoadX509KeyPair(serverCertLocation, serverKeyLocation)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load server cert and key: %v", err)
 	}
 
-	// Create the credentials and return it
+	// Create the credentials and return it.
 	config := &tls.Config{
-		ClientCAs:    certPool,
+		ClientCAs:    certPool, // this option restrict this server to mutual TLS.
 		Certificates: []tls.Certificate{serverCert},
 		ClientAuth:   tls.NoClientCert,
 		MinVersion:   tls.VersionTLS13,
