@@ -50,17 +50,17 @@ venom-qpid.cid:
 	docker exec venom-qpid qpid-config add queue amqp-test
 venom-grpc.cid:
 	docker build -t venom-grpc-greeter ./grpc
-	$(call docker_run,venom-grpc-greeter,grpc,)
+	$(call docker_run,venom-grpc-greeter,grpc,-p 50051:50051)
 
-start-test-stack: venom-postgres.cid
-start-test-stack: venom-mysql.cid
-start-test-stack: venom-redis.cid
-start-test-stack: venom-imap.cid
-start-test-stack: venom-kafka.cid
-start-test-stack: venom-rabbit.cid
-start-test-stack: venom-sshd.cid
-start-test-stack: venom-mqtt.cid
-start-test-stack: venom-qpid.cid
+# start-test-stack: venom-postgres.cid
+# start-test-stack: venom-mysql.cid
+# start-test-stack: venom-redis.cid
+# start-test-stack: venom-imap.cid
+# start-test-stack: venom-kafka.cid
+# start-test-stack: venom-rabbit.cid
+# start-test-stack: venom-sshd.cid
+# start-test-stack: venom-mqtt.cid
+# start-test-stack: venom-qpid.cid
 start-test-stack: $(PKI_DIR)
 start-test-stack: venom-grpc.cid
 

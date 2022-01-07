@@ -95,6 +95,7 @@ func loadTLSCredentials() (credentials.TransportCredentials, error) {
 		ClientCAs:    certPool,
 		Certificates: []tls.Certificate{serverCert},
 		ClientAuth:   tls.NoClientCert,
+		MinVersion:   tls.VersionTLS13,
 	}
 
 	return credentials.NewTLS(config), nil

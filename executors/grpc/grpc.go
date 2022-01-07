@@ -6,7 +6,10 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strconv"
 	"time"
 
@@ -135,11 +138,25 @@ func (Executor) Run(ctx context.Context, step venom.TestStep) (interface{}, erro
 		defer cancel()
 
 		var creds credentials.TransportCredentials
+
+		workdir := venom.StringVarFromCtx(ctx, "venom.testsuite.workdir")
+
 		// connect to a TLS server
 		if e.TLSRootCA != "" {
+			TLSRootCAFilepath := filepath.Join(workdir, e.TLSRootCA)
+			var TLSRootCA []byte
+			if _, err := os.Stat(TLSRootCAFilepath); err == nil {
+				TLSRootCA, err = os.ReadFile(TLSRootCAFilepath)
+				if err != nil {
+					return nil, fmt.Errorf("unable to read TLSRootCA from file %s", TLSRootCAFilepath)
+				}
+			} else {
+				TLSRootCA = []byte(e.TLSRootCA)
+			}
+
 			certPool := x509.NewCertPool()
-			if !certPool.AppendCertsFromPEM([]byte(e.TLSRootCA)) {
-				return nil, fmt.Errorf("failed to add root CA's certificate")
+			if ok := certPool.AppendCertsFromPEM(TLSRootCA); !ok {
+				return nil, errors.New("failed to add root CA's certificate")
 			}
 			creds = credentials.NewTLS(&tls.Config{
 				ClientCAs:          certPool,
@@ -147,14 +164,35 @@ func (Executor) Run(ctx context.Context, step venom.TestStep) (interface{}, erro
 			})
 
 			// connect to a mutual TLS server
+			var TLSClientCert, TLSClientKey []byte
 			if e.TLSClientCert != "" {
-				if e.TLSClientKey == "" {
-					return nil, fmt.Errorf("TLS client cert specified, but TLS client key is missing")
+				TLSClientCertFilepath := filepath.Join(workdir, e.TLSClientCert)
+				if _, err := os.Stat(TLSClientCertFilepath); err == nil {
+					TLSClientCert, err = os.ReadFile(TLSClientCertFilepath)
+					if err != nil {
+						return nil, fmt.Errorf("unable to read TLSClientCert from file %s", TLSClientCertFilepath)
+					}
+				} else {
+					TLSClientCert = []byte(e.TLSClientCert)
 				}
-				// Load client's certificate and private key
-				cert, err := tls.X509KeyPair([]byte(e.TLSClientCert), []byte(e.TLSClientKey))
+			}
+
+			if e.TLSClientKey != "" {
+				TLSClientKeyFilepath := filepath.Join(workdir, e.TLSClientKey)
+				if _, err := os.Stat(TLSClientKeyFilepath); err == nil {
+					TLSClientKey, err = os.ReadFile(TLSClientKeyFilepath)
+					if err != nil {
+						return nil, fmt.Errorf("unable to read TLSClientKey from file %s", TLSClientKeyFilepath)
+					}
+				} else {
+					TLSClientKey = []byte(e.TLSClientKey)
+				}
+			}
+
+			if len(TLSClientCert) > 0 && len(TLSClientKey) > 0 {
+				cert, err := tls.X509KeyPair(TLSClientCert, TLSClientKey)
 				if err != nil {
-					return nil, fmt.Errorf("failed to parse x509 TLS certificate or key: %w", err)
+					return nil, fmt.Errorf("failed to parse x509 mTLS certificate or key: %s", err)
 				}
 				creds = credentials.NewTLS(&tls.Config{
 					ClientCAs:          certPool,
@@ -178,7 +216,7 @@ func (Executor) Run(ctx context.Context, step venom.TestStep) (interface{}, erro
 	refCtx := metadata.NewOutgoingContext(ctx, md)
 	cc, err = dial()
 	if err != nil {
-		return Result{Err: err.Error()}, fmt.Errorf("grpc dial error")
+		return Result{Err: err.Error()}, fmt.Errorf("grpc dial error: %w", err)
 	}
 	refClient = grpcreflect.NewClient(refCtx, reflectpb.NewServerReflectionClient(cc))
 	descSource = grpcurl.DescriptorSourceFromServer(ctx, refClient)
